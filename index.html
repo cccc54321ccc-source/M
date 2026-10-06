@@ -264,6 +264,22 @@ a.b{color:inherit}
 #acct img,#au .av img{width:100%;height:100%;object-fit:cover;display:block}
 #au .av{overflow:hidden}
 #au .sc{font-size:12px;font-weight:700;color:var(--mute);margin-top:6px}
+#ap,#lb{display:none!important}
+.pav{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:var(--acs);font-size:24px;font-weight:700;overflow:hidden;flex:none}
+.pav img{width:100%;height:100%;object-fit:cover;display:block}
+.acp{display:grid;gap:12px}.acp .ph{display:flex;gap:14px;align-items:center}
+.acp input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sf2);color:var(--ink);font:inherit}
+.acp .row2 input{width:auto}
+.acp .st3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.acp .st3 div{background:var(--sf2);border:1px solid var(--line);border-radius:12px;padding:10px 4px}
+.acp .st3 b{display:block;font-size:17px}.acp .st3 small{color:var(--mute)}
+#am{position:fixed;z-index:40;width:260px;background:var(--sf);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);padding:8px}
+#am[hidden]{display:none}
+#am .mh{display:flex;gap:12px;align-items:center;padding:8px 10px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+#am .mh .pav{width:44px;height:44px;font-size:18px}
+#am .mh div:last-child{display:grid;min-width:0}#am small{color:var(--mute);overflow-wrap:anywhere}
+#am button{display:flex;align-items:center;width:100%;min-height:42px;padding:0 12px;border:0;border-radius:10px;background:none;color:inherit;text-align:start;font:inherit;cursor:pointer}
+#am button:hover{background:var(--sf2)}
 #au hr{border:0;border-top:1px solid var(--line);width:100%;margin:2px 0}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -296,23 +312,36 @@ function authView(){
   <button class="b pri" data-x="go">${up?t('إنشاء الحساب','Create account'):t('دخول','Sign in')}</button>
   ${up?'':`<button class="b" data-x="forgot">${t('نسيت كلمة المرور؟','Forgot password?')}</button>`}`);
 }
-function acctView(){
-  const u=A.user;let n=0,sz=0;A.cache.forEach(d=>{n++;(d.atts||[]).forEach(a=>sz+=a.size||0)});
-  const mb=sz<1048576?(sz/1024).toFixed(0)+' KB':(sz/1048576).toFixed(1)+' MB',a=av(u);
-  show(`<div style="display:flex;gap:14px;align-items:center"><div class="av" id="au-av">${esc(nm(u).slice(0,1).toUpperCase())}</div><div style="min-width:0"><h2>${esc(nm(u))}</h2><p dir="ltr" style="text-align:start;overflow-wrap:anywhere">${esc(u.email)}</p></div></div>
-  <div class="st"><div><b>${n}</b><p>${t('عنصر','Items')}</p></div><div><b>${mb}</b><p>${t('ملفات','Files')}</p></div><div><b>${new Date(u.created_at).toLocaleDateString(L?'en':'ar-u-nu-latn',{year:'numeric',month:'short'})}</b><p>${t('عضو منذ','Member since')}</p></div></div>
-  <div class="sc">${t('الملف الشخصي','Profile')}</div>
-  <div style="display:flex;gap:8px"><button class="b" style="flex:1" data-x="pic">${t('تغيير الصورة','Change photo')}</button>${a?`<button class="b" data-x="rmpic">${t('حذف','Remove')}</button>`:''}</div><input id="au-f" type="file" accept="image/*" hidden>
-  <input id="au-n" value="${esc(nm(u))}" placeholder="${t('الاسم','Name')}"><button class="b" data-x="name">${t('حفظ الاسم','Save name')}</button>
-  <div class="sc">${t('الأمان','Security')}</div>
-  <input id="au-m" type="email" placeholder="${t('إيميل جديد','New email')}" dir="ltr"><button class="b" data-x="mail">${t('تغيير الإيميل','Change email')}</button>
-  <input id="au-p" type="password" placeholder="${t('كلمة مرور جديدة','New password')}" autocomplete="new-password" dir="ltr"><button class="b" data-x="pw">${t('تغيير كلمة المرور','Change password')}</button>
-  <button class="b" data-x="all">${t('الخروج من كل الأجهزة','Sign out everywhere')}</button>
-  <div class="sc">${t('بياناتك','Your data')}</div>
-  <button class="b" data-x="exp">${t('تصدير بياناتي (JSON)','Export my data (JSON)')}</button>
-  <div class="er" id="au-er"></div><hr>
-  <button class="b" data-x="out">${t('تسجيل الخروج','Sign out')}</button><button class="b" data-x="close">${t('إغلاق','Close')}</button>`);
-  if(a)A.url(a).then(x=>{const e=$('#au-av');if(e)e.innerHTML='<img src="'+x+'" alt="">'}).catch(()=>{});
+const mbf=z=>z<1048576?(z/1024).toFixed(0)+' KB':(z/1048576).toFixed(1)+' MB';
+function fillAv(sel,a){if($(sel)&&a)A.url(a).then(x=>{const e=$(sel);if(e)e.innerHTML='<img src="'+x+'" alt="">'}).catch(()=>{})}
+// بطاقة الحساب داخل قسم الإعدادات
+A.panel=()=>{
+  const u=A.user;if(!u)return'';
+  let n=0,sz=0;A.cache.forEach(d=>{n++;(d.atts||[]).forEach(a=>sz+=a.size||0)});
+  const a=av(u);setTimeout(()=>fillAv('#au-av',a),0);
+  return `<div class="set acp"><h3>${t('الحساب','Account')}</h3>
+  <div class="ph"><div class="pav" id="au-av">${esc(nm(u).slice(0,1).toUpperCase())}</div><div style="min-width:0"><b>${esc(nm(u))}</b><p class="sub" dir="ltr" style="margin:2px 0 0;text-align:start;overflow-wrap:anywhere">${esc(u.email)}</p></div></div>
+  <div class="st3"><div><b>${n}</b><small>${t('عنصر','Items')}</small></div><div><b>${mbf(sz)}</b><small>${t('ملفات','Files')}</small></div><div><b>${new Date(u.created_at).toLocaleDateString(L?'en':'ar-u-nu-latn',{year:'numeric',month:'short'})}</b><small>${t('عضو منذ','Member since')}</small></div></div>
+  <div class="pills"><button class="b" data-x="pic">${t('تغيير الصورة','Change photo')}</button>${a?`<button class="b" data-x="rmpic">${t('حذف الصورة','Remove photo')}</button>`:''}</div><input id="au-f" type="file" accept="image/*" hidden>
+  <div class="row2"><input id="au-n" value="${esc(nm(u))}" placeholder="${t('الاسم','Name')}"><button class="b" data-x="name">${t('حفظ الاسم','Save name')}</button></div>
+  <div class="row2"><input id="au-m" type="email" placeholder="${t('إيميل جديد','New email')}" dir="ltr"><button class="b" data-x="mail">${t('تغيير الإيميل','Change email')}</button></div>
+  <div class="row2"><input id="au-p" type="password" placeholder="${t('كلمة مرور جديدة','New password')}" autocomplete="new-password" dir="ltr"><button class="b" data-x="pw">${t('تغيير كلمة المرور','Change password')}</button></div>
+  <div class="pills"><button class="b" data-x="all">${t('الخروج من كل الأجهزة','Sign out everywhere')}</button><button class="b" data-x="exp">${t('تصدير بياناتي (JSON)','Export my data (JSON)')}</button></div>
+  <div class="er" id="au-er" style="color:var(--bad);font-size:13px;min-height:1em"></div></div>`;
+};
+// قائمة الصورة فوق: الصورة، اللغة، المظهر، تسجيل الخروج
+function menu(){
+  let m=$('#am');if(!m){m=document.createElement('div');m.id='am';m.hidden=true;document.body.appendChild(m)}
+  if(!m.hidden){m.hidden=true;return}
+  const u=A.user;
+  m.innerHTML=`<div class="mh"><div class="pav" id="am-av">${esc(nm(u).slice(0,1).toUpperCase())}</div><div><b>${esc(nm(u))}</b><small dir="ltr">${esc(u.email)}</small></div></div>
+  <button data-x="pic2">${t('تغيير الصورة','Change photo')}</button>
+  <button data-lang="${L?'ar':'en'}">${L?'العربية':'English'}</button>
+  <button data-m="ap">${t('المظهر','Appearance')}</button>
+  <button data-x="out">${t('تسجيل الخروج','Sign out')}</button><input id="am-f" type="file" accept="image/*" hidden>`;
+  const r=$('#acct').getBoundingClientRect(),w=260;
+  m.style.top=(r.bottom+8)+'px';m.style.left=Math.max(8,Math.min(r.right-w,innerWidth-w-8))+'px';m.hidden=false;
+  fillAv('#am-av',av(u));
 }
 async function pic(f){
   const im=await createImageBitmap(f),k=Math.min(1,256/Math.max(im.width,im.height)),c=document.createElement('canvas');
@@ -320,7 +349,7 @@ async function pic(f){
   const bl=await new Promise(r=>c.toBlob(r,'image/jpeg',.85)),id='avatar-'+Date.now(),old=av(A.user);
   await A.put(id,bl);
   const r=await A.sb.auth.updateUser({data:{avatar:id}});if(r.error)throw r.error;
-  A.user=r.data.user;if(old)A.del(old);label();acctView();
+  A.user=r.data.user;if(old)A.del(old);label();emit();
 }
 function setupView(){
   show(`<h2>${t('تفعيل الحسابات','Enable accounts')}</h2><p>${t('الحسابات لسه ما انفعلت. افتح index.html والصق رابط مشروع Supabase والمفتاح في SB_URL و SB_KEY أول السكربت، وشغّل ملف supabase-setup.sql مرة وحدة في SQL Editor.','Accounts are not enabled yet. Paste your Supabase project URL and key into SB_URL and SB_KEY at the top of the script, and run supabase-setup.sql once in the SQL Editor.')}</p><button class="b" data-x="close">${t('إغلاق','Close')}</button>`);
@@ -343,10 +372,11 @@ async function act(k){
   if(k==='go')return go();
   if(k==='close')return hide();
   if(k==='forgot'){const e=$('#au-e').value.trim();if(!e)return er(t('اكتب بريدك أول','Enter your email first'));const r=await A.sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});return er(r.error?msg(r.error):t('أرسلنا لك رابط تغيير كلمة المرور','Password reset link sent'))}
-  if(k==='name'){const r=await A.sb.auth.updateUser({data:{name:$('#au-n').value.trim()}});if(r.error)return er(msg(r.error));A.user=r.data.user;label();return acctView()}
+  if(k==='name'){const r=await A.sb.auth.updateUser({data:{name:$('#au-n').value.trim()}});if(r.error)return er(msg(r.error));A.user=r.data.user;label();return emit()}
   if(k==='pw'){const p=$('#au-p').value;if(p.length<6)return er(t('كلمة المرور 6 أحرف أو أكثر','Password must be 6+ characters'));const r=await A.sb.auth.updateUser({password:p});return er(r.error?msg(r.error):t('تم تغيير كلمة المرور','Password changed'))}
   if(k==='pic')return $('#au-f').click();
-  if(k==='rmpic'){const o=av(A.user),r=await A.sb.auth.updateUser({data:{avatar:null}});if(r.error)return er(msg(r.error));A.user=r.data.user;if(o)A.del(o);label();return acctView()}
+  if(k==='pic2')return $('#am-f').click();
+  if(k==='rmpic'){const o=av(A.user),r=await A.sb.auth.updateUser({data:{avatar:null}});if(r.error)return er(msg(r.error));A.user=r.data.user;if(o)A.del(o);label();return emit()}
   if(k==='mail'){const e=$('#au-m').value.trim();if(!e)return er(t('اكتب الإيميل الجديد','Enter the new email'));const r=await A.sb.auth.updateUser({email:e});return er(r.error?msg(r.error):t('تم. إذا وصلك رابط تأكيد على الإيميل الجديد افتحه.','Done. If you get a confirmation link, open it.'))}
   if(k==='all'){await A.sb.auth.signOut({scope:'global'});location.reload();return}
   if(k==='exp'){const b=new Blob([JSON.stringify([...A.cache].map(([id,d])=>({id,...d})),null,2)],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='my-library.json';l.click();return}
@@ -381,14 +411,18 @@ A.del=async id=>{uc.delete(id);try{await A.sb.storage.from('lib-files').remove([
 function start(u){A.user=u;label();if(A.on)return;A.on=true;hide();setTimeout(rr,0)}
 box=document.createElement('div');box.id='au';document.body.appendChild(box);
 box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]');if(x)act(x.dataset.x);else if(ev.target===box&&(A.on||!A.sb))hide()});
-box.addEventListener('change',ev=>{const f=ev.target.id==='au-f'&&ev.target.files[0];if(f)pic(f).catch(x=>er(msg(x)))});
+document.addEventListener('click',ev=>{
+  const x=ev.target.closest('#sx [data-x],#am [data-x]');if(x)act(x.dataset.x);
+  const m=$('#am');if(m&&!m.hidden){if(ev.target.closest('#am button'))setTimeout(()=>{m.hidden=true},0);else if(!ev.target.closest('#am,#acct'))m.hidden=true}
+});
+document.addEventListener('change',ev=>{const f=ev.target.matches&&ev.target.matches('#au-f,#am-f')&&ev.target.files[0];if(f)pic(f).catch(x=>$('#au-er')?er(msg(x)):alert(msg(x)))});
 box.addEventListener('keydown',ev=>{ev.stopPropagation();if(ev.key==='Enter'&&$('[data-x=go]'))go()});
-const b=$('#acct');if(b)b.onclick=()=>A.on?acctView():(A.sb?authView():setupView());
+const b=$('#acct');if(b)b.onclick=()=>A.on?menu():(A.sb?authView():setupView());
 if(SB_URL&&SB_KEY&&window.supabase){
   A.sb=supabase.createClient(SB_URL,SB_KEY);
   A.sb.auth.onAuthStateChange((ev,s)=>{
     if(ev==='SIGNED_OUT'){if(A.on)location.reload();return}
-    if(s&&s.user){start(s.user);if(ev==='PASSWORD_RECOVERY')acctView()}
+    if(s&&s.user){start(s.user);if(ev==='PASSWORD_RECOVERY'){const n=$('#nav [data-nav=set]');if(n)n.click()}}
   });
   A.sb.auth.getSession().then(r=>{if(!r.data.session)authView()});
 }else rr();
@@ -603,7 +637,7 @@ function render(){
     if(nav==='tl:bulk')return h3('إضافة جماعية','<p class="sub">اكتب كل عنصر في سطر بهالصيغة: الاسم | الرابط | النوع. الرابط والنوع اختياريين، ولو كتبت رابط فقط يصير الاسم هو الموقع.</p><textarea id="bk2" rows="8" dir="auto" placeholder="شرح التصميم | https://example.com | مهارة"></textarea><div class="row2"><input id="bkt" value="'+esc(disp('مهارة'))+'" maxlength="30" aria-label="النوع الافتراضي"><button class="b pri" data-a="bulk">إضافة الكل</button></div>');
     if(nav==='tl:export')return h3('تصدير القائمة','<p class="sub">اختر الصيغة وانسخ النتيجة.</p><div class="pills"><button class="b" data-a="ex" data-f="md">Markdown</button><button class="b" data-a="ex" data-f="csv">CSV</button><button class="b" data-a="ex" data-f="txt">روابط فقط</button></div><textarea id="exo" rows="9" dir="auto" readonly></textarea><button class="b pri" data-a="excp">نسخ</button>');
     if(nav==='tl:backup')return h3('النسخ الاحتياطي والاستيراد','<p class="sub">انسخ كل بياناتك كنص واحفظه عندك، أو استورد نسخة سابقة. عندك الحين '+items.length+' عنصر.</p><button class="b pri" data-a="bk">فتح النسخ الاحتياطي</button>');
-    return h3('اللغة',`<div class="pills"><button class="b${LANG==='ar'?' pri':''}" data-lang="ar">العربية</button><button class="b${LANG==='en'?' pri':''}" data-lang="en">English</button></div>`)+h3('المظهر',`<div class="pills">${[['auto','تلقائي'],['light','فاتح'],['dark','داكن']].map(([m,l])=>`<button class="b${th===m?' pri':''}" data-th="${m}">${l}</button>`).join('')}</div><div class="sw">${ACC.map((a,n)=>`<button aria-label="${a[3]}" data-ac="${n}" style="--h:${a[0]};--s:${a[1]};--l:${a[2]}">${ac===n?'✓':''}</button>`).join('')}</div>`)+h3('اختصارات لوحة المفاتيح','<p class="sub"><kbd>/</kbd> بحث &nbsp; <kbd>N</kbd> عنصر جديد &nbsp; <kbd>Ctrl K</kbd> لوحة الأوامر &nbsp; <kbd>Esc</kbd> إغلاق</p>')+h3('البيانات','<p class="sub">النسخ الاحتياطي والتصدير في قسم الأدوات.</p><button class="b" data-a="bk">فتح النسخ الاحتياطي</button>');
+    return (window.ACCT&&ACCT.on?ACCT.panel():'')+h3('اللغة',`<div class="pills"><button class="b${LANG==='ar'?' pri':''}" data-lang="ar">العربية</button><button class="b${LANG==='en'?' pri':''}" data-lang="en">English</button></div>`)+h3('المظهر',`<div class="pills">${[['auto','تلقائي'],['light','فاتح'],['dark','داكن']].map(([m,l])=>`<button class="b${th===m?' pri':''}" data-th="${m}">${l}</button>`).join('')}</div><div class="sw">${ACC.map((a,n)=>`<button aria-label="${a[3]}" data-ac="${n}" style="--h:${a[0]};--s:${a[1]};--l:${a[2]}">${ac===n?'✓':''}</button>`).join('')}</div>`)+h3('اختصارات لوحة المفاتيح','<p class="sub"><kbd>/</kbd> بحث &nbsp; <kbd>N</kbd> عنصر جديد &nbsp; <kbd>Ctrl K</kbd> لوحة الأوامر &nbsp; <kbd>Esc</kbd> إغلاق</p>')+h3('البيانات','<p class="sub">النسخ الاحتياطي والتصدير في قسم الأدوات.</p><button class="b" data-a="bk">فتح النسخ الاحتياطي</button>');
   };
   if(home){
     const rc=[...items].sort((a,b)=>(b.ts||0)-(a.ts||0)).slice(0,5),fv=items.filter(i=>i.fav).slice(0,4);
