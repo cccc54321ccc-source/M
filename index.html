@@ -399,7 +399,7 @@ A.col={
       try{if(!A.cache.size&&!localStorage.getItem('skills-lib-imported')){const old=JSON.parse(localStorage.getItem('skills-lib-v1')||'[]');for(const x of old){const{id,...d}=x;await up(id,d)}localStorage.setItem('skills-lib-imported','1')}}catch(e){}
       emit();
     }).catch(e=>bad&&bad(e));
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)load().then(emit).catch(()=>{})});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){load().then(emit).catch(()=>{});refreshUser()}});
   }
 };
 // ---- ملفات وصور المستخدم (Storage: lib-files) ----
@@ -408,7 +408,9 @@ A.put=async(id,f)=>{const{error}=await A.sb.storage.from('lib-files').upload(P(i
 A.url=id=>{if(!uc.has(id))uc.set(id,A.sb.storage.from('lib-files').createSignedUrl(P(id),86400).then(r=>{if(r.error||!r.data)throw 0;return r.data.signedUrl}));const p=uc.get(id);p.catch(()=>uc.delete(id));return p};
 A.del=async id=>{uc.delete(id);try{await A.sb.storage.from('lib-files').remove([P(id)])}catch(e){}};
 // ---- تشغيل ----
-function start(u){A.user=u;label();if(A.on)return;A.on=true;hide();setTimeout(rr,0)}
+// يجيب بيانات المستخدم الحديثة من السيرفر (عشان الصورة والاسم يتحدثون على كل الأجهزة)
+const refreshUser=()=>{if(!A.sb||!A.on)return;A.sb.auth.getUser().then(r=>{const u=r.data&&r.data.user;if(u){A.user=u;label();emit()}}).catch(()=>{})};
+function start(u){A.user=u;label();if(A.on)return;A.on=true;hide();setTimeout(rr,0);setTimeout(refreshUser,600)}
 box=document.createElement('div');box.id='au';document.body.appendChild(box);
 box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]');if(x)act(x.dataset.x);else if(ev.target===box&&(A.on||!A.sb))hide()});
 document.addEventListener('click',ev=>{
