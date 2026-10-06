@@ -195,7 +195,7 @@ a.b{color:inherit}
   <header class="top">
     <input id="q" type="search" placeholder="ابحث بالاسم أو النوع أو الوسم أو الرابط" aria-label="بحث">
     <button id="ck" class="b" title="لوحة الأوامر">الأوامر <kbd>Ctrl K</kbd></button><button id="ap" class="b" data-m="ap">المظهر</button><button id="lb" class="b" title="Language" aria-label="Language"></button>
-    <button id="bx" class="b">نسخ احتياطي</button>
+    <button id="acct" class="b">حسابي</button><button id="bx" class="b">نسخ احتياطي</button>
     <button id="add" class="b pri" data-m="add">+ إضافة ▾</button>
   </header>
   <header id="sech" class="hd0" hidden><h1 id="s1"></h1><p id="s2" class="sub"></p></header>
@@ -247,6 +247,126 @@ a.b{color:inherit}
 <div id="menu" class="menu" role="menu" hidden></div>
 <div id="toast" role="status" hidden></div>
 
+<style>
+#au{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(32,33,36,.55);overflow:auto}
+#au.on{display:flex}
+#au .cd{width:100%;max-width:420px;background:var(--sf);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh);padding:24px;display:grid;gap:12px}
+#au h2{margin:0;font-size:20px}#au p{margin:0;color:var(--mute);font-size:14px;line-height:1.7}
+#au input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sf2);color:var(--ink);font:inherit}
+#au .tabs{display:flex;gap:6px}#au .tabs .b{flex:1}
+#au .b.on{background:var(--acc);color:var(--acs);border-color:transparent}
+#au .er{color:var(--bad);font-size:13px;min-height:1em}
+#au .av{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--acc);color:var(--acs);font-size:24px;font-weight:700;flex:none}
+#au .st{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+#au .st div{background:var(--sf2);border:1px solid var(--line);border-radius:12px;padding:10px 4px}
+#au .st b{display:block;font-size:17px}
+#au hr{border:0;border-top:1px solid var(--line);width:100%;margin:2px 0}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+// ===== الصق هنا بيانات مشروعك من Supabase (Project Settings ← API) =====
+const SB_URL='',SB_KEY='';
+// =======================================================================
+const L=(()=>{try{return localStorage.getItem('skills-lib-lang')==='en'}catch(e){return false}})();
+const t=(a,e)=>L?e:a,$=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const A=window.ACCT={on:false,sb:null,user:null,cache:new Map()};
+let box,mode='in',busy=false,cb,rr;
+A.ready=new Promise(r=>rr=r);
+const nm=u=>(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0];
+const er=m=>{const x=$('#au-er');if(x)x.textContent=m};
+const msg=x=>{const m=String(x&&x.message||x);return /Invalid login/i.test(m)?t('البريد أو كلمة المرور غلط','Wrong email or password'):/already registered/i.test(m)?t('هذا البريد مسجّل من قبل، جرّب الدخول','Email already registered, try signing in'):/not confirmed/i.test(m)?t('فعّل حسابك من رسالة البريد أول','Confirm your email first'):/rate limit/i.test(m)?t('محاولات كثيرة، انتظر شوي وجرّب','Too many attempts, wait a bit'):m};
+function show(h){box.innerHTML='<div class="cd" dir="'+(L?'ltr':'rtl')+'">'+h+'</div>';box.classList.add('on')}
+const hide=()=>box.classList.remove('on');
+function label(){const b=$('#acct');if(b&&A.user)b.textContent='👤 '+nm(A.user)}
+function authView(){
+  const up=mode==='up';
+  show(`<h2>${t('مكتبتي','My Library')}</h2><p>${t('سجّل دخولك عشان بياناتك وملفاتك وصورك تنحفظ في حسابك وتظهر في كل أجهزتك.','Sign in so your data, files and images are saved to your account on all your devices.')}</p>
+  <div class="tabs"><button class="b ${up?'':'on'}" data-x="tin">${t('دخول','Sign in')}</button><button class="b ${up?'on':''}" data-x="tup">${t('حساب جديد','New account')}</button></div>
+  ${up?`<input id="au-n" placeholder="${t('الاسم','Name')}" autocomplete="name">`:''}
+  <input id="au-e" type="email" placeholder="${t('البريد الإلكتروني','Email')}" autocomplete="email" dir="ltr">
+  <input id="au-p" type="password" placeholder="${t('كلمة المرور (6 أحرف على الأقل)','Password (6+ characters)')}" autocomplete="${up?'new-password':'current-password'}" dir="ltr">
+  <div class="er" id="au-er"></div>
+  <button class="b pri" data-x="go">${up?t('إنشاء الحساب','Create account'):t('دخول','Sign in')}</button>
+  ${up?'':`<button class="b" data-x="forgot">${t('نسيت كلمة المرور؟','Forgot password?')}</button>`}`);
+}
+function acctView(){
+  const u=A.user;let n=0,sz=0;A.cache.forEach(d=>{n++;(d.atts||[]).forEach(a=>sz+=a.size||0)});
+  const mb=sz<1048576?(sz/1024).toFixed(0)+' KB':(sz/1048576).toFixed(1)+' MB';
+  show(`<div style="display:flex;gap:14px;align-items:center"><div class="av">${esc(nm(u).slice(0,1).toUpperCase())}</div><div><h2>${esc(nm(u))}</h2><p dir="ltr" style="text-align:start">${esc(u.email)}</p></div></div>
+  <div class="st"><div><b>${n}</b><p>${t('عنصر','Items')}</p></div><div><b>${mb}</b><p>${t('ملفات','Files')}</p></div><div><b>${new Date(u.created_at).toLocaleDateString(L?'en':'ar-u-nu-latn',{year:'numeric',month:'short'})}</b><p>${t('عضو منذ','Member since')}</p></div></div>
+  <hr><input id="au-n" value="${esc(nm(u))}" placeholder="${t('الاسم','Name')}"><button class="b" data-x="name">${t('حفظ الاسم','Save name')}</button>
+  <input id="au-p" type="password" placeholder="${t('كلمة مرور جديدة','New password')}" autocomplete="new-password" dir="ltr"><button class="b" data-x="pw">${t('تغيير كلمة المرور','Change password')}</button>
+  <div class="er" id="au-er"></div><hr>
+  <button class="b" data-x="out">${t('تسجيل الخروج','Sign out')}</button><button class="b" data-x="close">${t('إغلاق','Close')}</button>`);
+}
+function setupView(){
+  show(`<h2>${t('تفعيل الحسابات','Enable accounts')}</h2><p>${t('الحسابات لسه ما انفعلت. افتح index.html والصق رابط مشروع Supabase والمفتاح في SB_URL و SB_KEY أول السكربت، وشغّل ملف supabase-setup.sql مرة وحدة في SQL Editor.','Accounts are not enabled yet. Paste your Supabase project URL and key into SB_URL and SB_KEY at the top of the script, and run supabase-setup.sql once in the SQL Editor.')}</p><button class="b" data-x="close">${t('إغلاق','Close')}</button>`);
+}
+async function go(){
+  const e=$('#au-e').value.trim(),p=$('#au-p').value;
+  if(!e||p.length<6)return er(t('اكتب بريدك وكلمة مرور من 6 أحرف أو أكثر','Enter your email and a password of 6+ characters'));
+  if(busy)return;busy=true;er(t('لحظة…','One moment…'));
+  try{
+    if(mode==='up'){
+      const r=await A.sb.auth.signUp({email:e,password:p,options:{data:{name:($('#au-n').value||'').trim()}}});
+      if(r.error)throw r.error;
+      if(!r.data.session)er(t('تم! افتح بريدك وفعّل الحساب ثم سجّل دخولك.','Done! Check your email to confirm, then sign in.'));
+    }else{const r=await A.sb.auth.signInWithPassword({email:e,password:p});if(r.error)throw r.error}
+  }catch(x){er(msg(x))}
+  busy=false;
+}
+async function act(k){
+  if(k==='tin'||k==='tup'){mode=k==='tup'?'up':'in';return authView()}
+  if(k==='go')return go();
+  if(k==='close')return hide();
+  if(k==='forgot'){const e=$('#au-e').value.trim();if(!e)return er(t('اكتب بريدك أول','Enter your email first'));const r=await A.sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin+location.pathname});return er(r.error?msg(r.error):t('أرسلنا لك رابط تغيير كلمة المرور','Password reset link sent'))}
+  if(k==='name'){const r=await A.sb.auth.updateUser({data:{name:$('#au-n').value.trim()}});if(r.error)return er(msg(r.error));A.user=r.data.user;label();return acctView()}
+  if(k==='pw'){const p=$('#au-p').value;if(p.length<6)return er(t('كلمة المرور 6 أحرف أو أكثر','Password must be 6+ characters'));const r=await A.sb.auth.updateUser({password:p});return er(r.error?msg(r.error):t('تم تغيير كلمة المرور','Password changed'))}
+  if(k==='out'){await A.sb.auth.signOut();location.reload()}
+}
+// ---- بيانات المستخدم (جدول lib_items) بنفس واجهة التطبيق ----
+const emit=()=>cb&&cb({docs:[...A.cache].map(([id,d])=>({id,data:()=>d}))});
+const load=async()=>{const{data,error}=await A.sb.from('lib_items').select('id,data');if(error)throw error;A.cache=new Map(data.map(r=>[r.id,r.data]))};
+const up=async(id,d)=>{const{error}=await A.sb.from('lib_items').upsert({id,user_id:A.user.id,data:d,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});if(error)throw error;A.cache.set(id,d);emit()};
+A.col={
+  doc:id=>({
+    set:d=>up(id,d),
+    update:d=>up(id,{...(A.cache.get(id)||{}),...d}),
+    delete:async()=>{const{error}=await A.sb.from('lib_items').delete().eq('id',id);if(error)throw error;A.cache.delete(id);emit()}
+  }),
+  onSnapshot:(ok,bad)=>{
+    cb=ok;
+    load().then(async()=>{
+      // أول دخول على هذا الجهاز: انقل عناصرك المحلية القديمة لحسابك
+      try{if(!A.cache.size&&!localStorage.getItem('skills-lib-imported')){const old=JSON.parse(localStorage.getItem('skills-lib-v1')||'[]');for(const x of old){const{id,...d}=x;await up(id,d)}localStorage.setItem('skills-lib-imported','1')}}catch(e){}
+      emit();
+    }).catch(e=>bad&&bad(e));
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)load().then(emit).catch(()=>{})});
+  }
+};
+// ---- ملفات وصور المستخدم (Storage: lib-files) ----
+const P=id=>A.user.id+'/'+id,uc=new Map();
+A.put=async(id,f)=>{const{error}=await A.sb.storage.from('lib-files').upload(P(id),f,{upsert:true,contentType:f.type||'application/octet-stream'});if(error)throw error};
+A.url=id=>{if(!uc.has(id))uc.set(id,A.sb.storage.from('lib-files').createSignedUrl(P(id),86400).then(r=>{if(r.error||!r.data)throw 0;return r.data.signedUrl}));const p=uc.get(id);p.catch(()=>uc.delete(id));return p};
+A.del=async id=>{uc.delete(id);try{await A.sb.storage.from('lib-files').remove([P(id)])}catch(e){}};
+// ---- تشغيل ----
+function start(u){A.user=u;label();if(A.on)return;A.on=true;hide();setTimeout(rr,0)}
+box=document.createElement('div');box.id='au';document.body.appendChild(box);
+box.addEventListener('click',ev=>{const x=ev.target.closest('[data-x]');if(x)act(x.dataset.x);else if(ev.target===box&&(A.on||!A.sb))hide()});
+box.addEventListener('keydown',ev=>{ev.stopPropagation();if(ev.key==='Enter'&&$('[data-x=go]'))go()});
+const b=$('#acct');if(b)b.onclick=()=>A.on?acctView():(A.sb?authView():setupView());
+if(SB_URL&&SB_KEY&&window.supabase){
+  A.sb=supabase.createClient(SB_URL,SB_KEY);
+  A.sb.auth.onAuthStateChange((ev,s)=>{
+    if(ev==='SIGNED_OUT'){if(A.on)location.reload();return}
+    if(s&&s.user){start(s.user);if(ev==='PASSWORD_RECOVERY')acctView()}
+  });
+  A.sb.auth.getSession().then(r=>{if(!r.data.session)authView()});
+}else rr();
+})();
+</script>
 <script>
 (function(){
 const $=s=>document.querySelector(s);
@@ -324,17 +444,19 @@ const FS=(()=>{
   const idb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('skills-lib-files',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
   const run=async(mode,fn)=>{const d=await idb();return new Promise((res,rej)=>{const t=d.transaction('f',mode),rq=fn(t.objectStore('f'));t.oncomplete=()=>res(rq&&rq.result);t.onerror=t.onabort=()=>rej(t.error)})};
   return{
-    cloud:()=>false,
+    cloud:()=>!!(window.ACCT&&ACCT.on),
     async put(id,file){
       try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+      if(window.ACCT&&ACCT.on){await ACCT.put(id,file);return 1}
       await run('readwrite',s=>s.put(file,id));return 0;
     },
     url(a){
+      if(a.c&&window.ACCT&&ACCT.on)return ACCT.url(a.id);
       if(cache.has(a.id))return cache.get(a.id);
       const p=run('readonly',s=>s.get(a.id)).then(b=>{if(!b)throw 0;return URL.createObjectURL(b)});
       cache.set(a.id,p);p.catch(()=>cache.delete(a.id));return p;
     },
-    async del(a){cache.delete(a.id);try{await run('readwrite',s=>s.delete(a.id))}catch(e){}}
+    async del(a){if(a.c&&window.ACCT&&ACCT.on)return ACCT.del(a.id);cache.delete(a.id);try{await run('readwrite',s=>s.delete(a.id))}catch(e){}}
   };
 })();
 const dropAtt=(a,ex)=>{if(!items.some(x=>x.id!==ex&&(x.atts||[]).some(y=>y.id===a.id)))FS.del(a)};
@@ -656,7 +778,8 @@ async function tool(a,d,el){
 async function init(){
   try{
     
-    const db=window.claude&&await window.claude.use('db');
+    if(window.ACCT)await ACCT.ready;
+    const db=window.ACCT&&ACCT.on?{collection:()=>ACCT.col}:window.claude&&await window.claude.use('db');
     if(db){
       col=db.collection('items');ready=true;
       col.onSnapshot(s=>{items=s.docs.map(d=>({id:d.id,...d.data()}));loaded=true;render()},()=>{loaded=true;render();toast('تعذر تحميل البيانات')});
