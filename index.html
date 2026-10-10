@@ -878,6 +878,17 @@ async function init(){
 }
 try{th=localStorage.getItem(TH)||'auto'}catch(e){}
 applyTh();try{setAc(+localStorage.getItem('skills-lib-ac')||0)}catch(e){}render();init();
+// استقبال رابط من زر المشاركة (Shortcuts أو ?add=الرابط): يفتح نموذج الإضافة والرابط جاهز
+(async()=>{
+  const q=new URLSearchParams(location.search),raw=[q.get('add'),q.get('url'),q.get('text')].filter(Boolean).join(' ');
+  const m=raw.match(/https?:\/\/[^\s]+/);if(!m)return;
+  if(window.ACCT)await ACCT.ready;
+  await new Promise(r=>setTimeout(r,700));
+  openForm();$('#l').value=m[0];
+  const t=(q.get('title')||'').trim();if(t)$('#n').value=t.slice(0,120);
+  try{history.replaceState(null,'',location.pathname)}catch(e){}
+  setTimeout(()=>$('#n').focus(),150);
+})();
 })();
 </script>
 </body>
