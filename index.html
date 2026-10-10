@@ -302,6 +302,7 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 const A=window.ACCT={on:false,sb:null,user:null,cache:new Map()};
 let box,mode='in',busy=false,cb,rr;
 A.ready=new Promise(r=>rr=r);
+A.cfg={url:SB_URL,key:SB_KEY};
 const av=u=>u.user_metadata&&u.user_metadata.avatar;
 const nm=u=>(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0];
 const er=m=>{const x=$('#au-er');if(x)x.textContent=m};
@@ -395,6 +396,7 @@ const emit=()=>cb&&cb({docs:[...A.cache].filter(([id])=>id[0]!=='_').map(([id,d]
 const load=async()=>{const{data,error}=await A.sb.from('lib_items').select('id,data');if(error)throw error;A.cache=new Map(data.map(r=>[r.id,r.data]))};
 const up=async(id,d)=>{const{error}=await A.sb.from('lib_items').upsert({id,user_id:A.user.id,data:d,updated_at:new Date().toISOString()},{onConflict:'user_id,id'});if(error)throw error;A.cache.set(id,d);emit()};
 A.tags=()=>{const d=A.cache.get('__tags');return d&&d.list||[]};
+A.quickKey=async()=>{let r=await A.sb.from('lib_keys').select('key').maybeSingle();if(r.error)throw r.error;if(r.data)return r.data.key;r=await A.sb.from('lib_keys').insert({}).select('key').single();if(r.error)throw r.error;return r.data.key};
 A.setTags=l=>up('__tags',{list:l}).catch(()=>{});
 A.col={
   doc:id=>({
@@ -887,18 +889,18 @@ applyTh();try{setAc(+localStorage.getItem('skills-lib-ac')||0)}catch(e){}render(
 // بعد ما تسوي الاختصار مرة وحدة وتنسخ رابط iCloud حقه، الصقه هنا بين علامتي الاقتباس
 const SHORTCUT_URL='';
 const siteLink=()=>location.origin+location.pathname+'?add=';
-function shareCard(){return '<div class="set"><h3>الإضافة من المشاركة</h3><p class="sub">أضف أي رابط لمكتبتك مباشرة من زر المشاركة في أي تطبيق على الآيفون والآيباد.</p><div class="pills"><button class="b pri" data-sc="run">تشغيل</button></div></div>'}
+function shareCard(){return '<div class="set"><h3>الإضافة من المشاركة</h3><p class="sub">احفظ أي رابط من تويتر أو أي تطبيق بدون ما تفتح الموقع: تشارك، تكتب الاسم، تختار النوع، ويتحفظ.</p><div class="pills"><button class="b pri" data-sc="run">تشغيل</button>'+(window.ACCT&&ACCT.on?'<button class="b" data-sc="cp-key">نسخ مفتاحي</button>':'')+'</div></div>'}
 function shModal(manual){
   let m=$('#shm');if(!m){m=document.createElement('div');m.id='shm';document.body.appendChild(m)}
   m.innerHTML='<div class="cd" dir="rtl"><h2>الإضافة من المشاركة</h2>'+(manual
-   ?'<p>سوّ هالخطوات مرة وحدة في تطبيق «الاختصارات»:</p><ol><li>اضغط + وسمّ الاختصار «مكتبتي».</li><li>اضغط (i) وفعّل «إظهار في ورقة المشاركة» مع قبول الروابط والنص فقط.</li><li>أضف «ترميز URL» على «مدخلات الاختصار».</li><li>أضف «نص» واكتب فيه الرابط تحت ثم «النص المرمّز».</li><li>أضف «فتح عناوين URL» على هذا النص.</li></ol><input readonly dir="ltr" value="'+esc(siteLink())+'"><button class="b" data-sc="copy">نسخ الرابط</button><button class="b pri" data-sc="close">تم</button>'
+   ?'<p>سوّ الاختصار مرة وحدة في تطبيق «الاختصارات»، وخل زر «نسخ» يساعدك:</p><ol><li>+ وسمّه «مكتبتي»، ثم (i) وفعّل «إظهار في ورقة المشاركة» مع الروابط والنص فقط.</li><li>أضف «طلب إدخال» (نص) بسؤال: اسم الرابط.</li><li>أضف «اختيار من قائمة» عناصرها: موقع، سكل، أداة، مقال، أخرى.</li><li>أضف «الحصول على محتوى عنوان URL»: الرابط من الزر الأول، الطريقة POST، وفي الترويسات: apikey من الزر الثاني، و Content-Type = application/json.</li><li>نص الطلب JSON فيه أربع خانات: key (مفتاحك من الزر الثالث)، link (مدخلات الاختصار)، name (المدخل المقدم)، type (العنصر المختار).</li></ol><button class="b" data-sc="cp-ep">نسخ رابط الإرسال</button><button class="b" data-sc="cp-ak">نسخ المفتاح العام</button><button class="b" data-sc="cp-key">نسخ مفتاحي</button><button class="b pri" data-sc="close">تم</button>'
    :'<p>شارك أي رابط من تويتر أو سفاري أو أي تطبيق، واضغط «مكتبتي»، واكتب الاسم واختر النوع ويتحفظ. اضغط تشغيل وأجهز لك كل شي.</p><button class="b pri" data-sc="run">تشغيل</button><button class="b" data-sc="close">لاحقاً</button>')+'</div>';
   m.classList.add('on');
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-sc]');if(!b)return;const k=b.dataset.sc,m=$('#shm');
   if(k==='close'){if(m)m.classList.remove('on');return}
-  if(k==='copy'){const i=$('#shm input');try{navigator.clipboard.writeText(i.value);toast('تم النسخ')}catch(x){i.select()}return}
+  if(k.startsWith('cp-')){(async()=>{try{const A=window.ACCT;if(!A||!A.on)return toast('سجّل دخولك أول');const v=k==='cp-ep'?A.cfg.url+'/rest/v1/rpc/quick_add':k==='cp-ak'?A.cfg.key:await A.quickKey();await navigator.clipboard.writeText(v);toast('تم النسخ')}catch(x){toast('تعذر النسخ، تأكد من تشغيل ملف SQL')}})();return}
   if(k==='run'){try{localStorage.setItem('skills-lib-share-seen','1')}catch(x){}
     if(SHORTCUT_URL){location.href=SHORTCUT_URL;return}
     shModal(true)}
